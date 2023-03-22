@@ -49,6 +49,7 @@ class DiscordTransponder(discord.Client):
     _botName: str
     _onLastBotPostAvailableHandler: callable
     _simulate: bool
+    _onAllMessagesSentHandler: callable
 
     def __init__(self, *, intents: Intents, **options: Any):
         super().__init__(intents=intents, **options)
@@ -57,6 +58,7 @@ class DiscordTransponder(discord.Client):
         self._onLastBotPostAvailableHandler = options['onLastBotPostAvailable']
         self._botName = options['botName']
         self._simulate = options['simulate']
+        self._onAllMessagesSentHandler = options['onAllMessagesSent']
 
     async def on_ready(self):
         await self._loadLastBotPost()
@@ -64,7 +66,6 @@ class DiscordTransponder(discord.Client):
 
     async def _sendMessages(self):
         for nextMessage in self._messages:
-
             if self._simulate:
                 print(nextMessage.message)
             else:
@@ -81,6 +82,7 @@ class DiscordTransponder(discord.Client):
                             filename=nextMessage.textFileAttachmentFilename))
 
         self._messages = []
+        self._onAllMessagesSentHandler()
 
     def enqueueMessages(self, discordMessages: list):
         self._messages.extend(discordMessages)
@@ -91,6 +93,7 @@ class DiscordTransponder(discord.Client):
             if self._botName == message.author.name and len(message.attachments) >= 1:
                 file = requests.get(message.attachments[0].url)
                 self._onLastBotPostAvailableHandler(file.content.decode())
+                break
 
     def waitUntilMessageAreSent(self):
         timeout = 10
@@ -102,7 +105,8 @@ class DiscordTransponder(discord.Client):
 
 
     @staticmethod
-    def create(lookupChannelId: int, discordBotName: str, onLastBotPostAvailableHandler: callable, simulate: bool) -> "DiscordTransponder":
+    def create(lookupChannelId: int, discordBotName: str, onLastBotPostAvailableHandler: callable,
+               onAllMessagesSentHandler: callable, simulate: bool) -> "DiscordTransponder":
         intents = discord.Intents.default()
         intents.messages = True
         intents.message_content = True
@@ -111,6 +115,7 @@ class DiscordTransponder(discord.Client):
             lookupChannelId=lookupChannelId,
             botName=discordBotName,
             onLastBotPostAvailable=onLastBotPostAvailableHandler,
+            onAllMessagesSent=onAllMessagesSentHandler,
             simulate=simulate
         )
 
