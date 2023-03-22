@@ -80,12 +80,14 @@ class DiscordTransponder(discord.Client):
                             fp=text_file,
                             filename=nextMessage.textFileAttachmentFilename))
 
+        self._messages = []
+
     def enqueueMessages(self, discordMessages: list):
         self._messages.extend(discordMessages)
 
     async def _loadLastBotPost(self):
         channel = self.get_channel(self._channelId)
-        async for message in channel.history(limit=10):
+        async for message in channel.history(limit=20):
             if self._botName == message.author.name and len(message.attachments) >= 1:
                 file = requests.get(message.attachments[0].url)
                 self._onLastBotPostAvailableHandler(file.content.decode())
