@@ -53,6 +53,7 @@ class Main:
             self._config['discord_lookup_channel_id'],
             self._config['discord_bot_name'],
             self.onLastBotPostAvailable,
+            self.onAllMessagesSent,
             self._args.simulate
         )
 
@@ -70,7 +71,6 @@ class Main:
         )
 
     def onLastBotPostAvailable(self, nominees: str):
-        print(nominees)
         logging.info('Processing poll data.')
         if not nominees:
             self._sendDiscordMessage(
@@ -100,13 +100,11 @@ class Main:
                         'winners.txt'
                     )
 
-        logging.info('Waiting for empty message queue.')
-        self._discordTransponder.waitUntilMessageAreSent()
+    def onAllMessagesSent(self):
         logging.info('Stopping.')
         self._discordTask.cancel()
         self._loop.stop()
         exit()
-
 
     def _mainLoop(self):
         self._discordTask = self._loop.create_task(
