@@ -3,8 +3,7 @@ import asyncio
 import json
 import logging
 import signal
-import time
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, Task
 from typing import Optional
 
 from Services.Discord import DiscordTransponder, DiscordMessage
@@ -20,6 +19,7 @@ class Main:
     _config: dict
     _discordTransponder: Optional[DiscordTransponder]
     _loop: AbstractEventLoop
+    _discordTask: Optional[Task]
 
     def __init__(self, TESTING=None):
         self._discordTransponder = None
@@ -28,7 +28,10 @@ class Main:
             format="%(asctime)s|%(levelname)s|%(message)s",
             level=logging.INFO if TESTING else logging.WARNING,
             datefmt="%Y-%m-%d %H:%M:%S",
+            filename='runtime.log'
         )
+
+        self._discordTask = None
 
         self._config = {
             'discord_token': ''
@@ -55,45 +58,6 @@ class Main:
 
         self._mainLoop()
 
-    # def _initialize(self):
-    #     discordDispatcher = DiscordDispatcher()
-    #     discordDispatcher.setSimulationMode(self._args.simulate)
-    #     discordDispatcher.startClient(self._config['discord_token'], self._config['discord_lookup_channel_id'])
-    #     # discordDispatcher.waitUntilReady()
-    #
-    #     return True
-    #
-    # def _perform(self):
-    #     discordDispatcher = DiscordDispatcher()
-    #     print(0)
-    #     text = discordDispatcher.getLastNominationFile(
-    #         self._config['discord_bot_name'],
-    #         self._config['discord_lookup_channel_id'],
-    #     )
-    #     print()
-    #     if text is None:
-    #         return False
-    #     print(1)
-    #     latestWinnerLoader = LatestWinnersLoader('lmac', NominationFile.nominees(text))
-    #     winners = latestWinnerLoader.getWinners()
-    #     if len(winners.keys()) == 0:
-    #         return False
-    #     print(2)
-    #     text = NominationFile.sortByWeighting(text, winners)
-    #     if not text:
-    #         return False
-    #     print(3)
-    #     discordDispatcher.enqueueMessage('Winners.', text, 'winners.txt')
-    #
-    #     return True
-    #
-    # def _finish(self):
-    #     discordDispatcher = DiscordDispatcher()
-    #     discordDispatcher.runTasks()
-    #     ## discordDispatcher.close()
-    #
-    #     return True
-
     def _sendDiscordMessage(self, message: str, channelId: int, textFileAttachmentContent: str = None,
                             textFileAttachmentFilename: str = ''):
         self._discordTransponder.enqueueMessages(
@@ -106,7 +70,8 @@ class Main:
         )
 
     def onLastBotPostAvailable(self, nominees: str):
-
+        print(nominees)
+        logging.info('Processing poll data.')
         if not nominees:
             self._sendDiscordMessage(
                 'Error: Can\'t find the file containing the nominees. Please check the Nomination Aggregator Bot.',
@@ -135,11 +100,16 @@ class Main:
                         'winners.txt'
                     )
 
+        logging.info('Waiting for empty message queue.')
         self._discordTransponder.waitUntilMessageAreSent()
+        logging.info('Stopping.')
+        self._discordTask.cancel()
+        self._loop.stop()
+        exit()
 
 
     def _mainLoop(self):
-        self._loop.create_task(
+        self._discordTask = self._loop.create_task(
             self._discordTransponder.start(
                 self._config['discord_token']
             )
