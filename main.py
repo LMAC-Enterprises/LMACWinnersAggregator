@@ -72,33 +72,40 @@ class Main:
 
     def onLastBotPostAvailable(self, nominees: str):
         logging.info('Processing poll data.')
-        if not nominees:
-            self._sendDiscordMessage(
-                'Error: Can\'t find the file containing the nominees. Please check the Nomination Aggregator Bot.',
-                self._config['discord_lookup_channel_id']
-            )
-        else:
-            latestWinnerLoader = LatestWinnersLoader('lmac', NominationFile.nominees(nominees))
-            winners = latestWinnerLoader.getWinners()
-            if len(winners.keys()) == 0:
+
+        try:
+            if not nominees:
                 self._sendDiscordMessage(
-                    'Error: The file containing the nominees is corrupted. Please check the Nomination Aggregator Bot.',
+                    'Error: Can\'t find the file containing the nominees. Please check the Nomination Aggregator Bot.',
                     self._config['discord_lookup_channel_id']
                 )
             else:
-                text = NominationFile.sortByWeighting(nominees, winners)
-                if not text:
+                latestWinnerLoader = LatestWinnersLoader('lmac', NominationFile.nominees(nominees))
+                winners = latestWinnerLoader.getWinners()
+                if len(winners.keys()) == 0:
                     self._sendDiscordMessage(
                         'Error: The file containing the nominees is corrupted. Please check the Nomination Aggregator Bot.',
                         self._config['discord_lookup_channel_id']
                     )
                 else:
-                    self._sendDiscordMessage(
-                        'Winners.',
-                        self._config['discord_lookup_channel_id'],
-                        text,
-                        'winners.txt'
-                    )
+                    text = NominationFile.sortByWeighting(nominees, winners)
+                    if not text:
+                        self._sendDiscordMessage(
+                            'Error: The file containing the nominees is corrupted. Please check the Nomination Aggregator Bot.',
+                            self._config['discord_lookup_channel_id']
+                        )
+                    else:
+                        self._sendDiscordMessage(
+                            'Winners.',
+                            self._config['discord_lookup_channel_id'],
+                            text,
+                            'winners.txt'
+                        )
+        except Exception:
+            self._sendDiscordMessage(
+                'Error. I failed to check the list of nominations. It seems to contain errors (duplicate names, corrupted format, ...?!) .',
+                self._config['discord_lookup_channel_id']
+            )
 
     def onAllMessagesSent(self):
         logging.info('Stopping.')
